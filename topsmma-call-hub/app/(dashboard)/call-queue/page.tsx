@@ -14,6 +14,11 @@ export default async function CallQueuePage() {
     .order("next_followup_at", { ascending: true, nullsFirst: false })
     .limit(100);
 
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, full_name")
+    .order("full_name");
+
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -47,6 +52,7 @@ export default async function CallQueuePage() {
         connectsToday: connectsToday ?? 0,
         meetings7d: meetings7d ?? 0,
       }}
+      reps={(profiles ?? []).map((p) => ({ id: p.id, full_name: p.full_name }))}
     />
   );
 }
