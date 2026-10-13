@@ -1,11 +1,22 @@
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { generateAiBrief } from "@/lib/ai-brief";
 
 const TIERS: { key: "T1" | "T2" | "T3"; label: string }[] = [
   { key: "T1", label: "Whale" },
   { key: "T2", label: "Bread & Butter" },
   { key: "T3", label: "Mass Market" },
 ];
+
+// How many leads get an AI brief generated automatically the moment
+// they're assigned. A bulk assign can move up to 200 leads at once,
+// and generating a grounded brief for each (fetch their site, call
+// Claude) takes a few seconds per lead, so auto-generation is capped
+// here to keep one background task reasonable. Anything beyond the
+// cap can still get a brief from the "Generate AI brief" button in
+// the Call queue when a rep opens them.
+const AUTO_BRIEF_CAP = 10;
 
 async function returnUncalled(formData: FormData) {
   "use server";
@@ -26,11 +37,16 @@ async function assignLead(formData: FormData) {
   const repId = String(formData.get("repId") || "");
   if (!leadId || !repId) return;
   const supabase = await createClient();
-  await supabase
+  const { error } = await supabase
     .from("leads")
-    .update({ assigned_rep_id: repId })
+    .update({ assigned_rep_id: repId, ai_brief_status: "pending" })
     .eq("id", leadId)
     .is("assigned_rep_id", null);
+
+  if (!error) {
+    after(() => generateAiBrief(leadId));
+  }
+
   revalidatePath("/team-pool");
 }
 
@@ -54,7 +70,16 @@ async function assignBulk(formData: FormData) {
   const ids = (targets ?? []).map((l) => l.id);
   if (ids.length === 0) return;
 
-  await supabase.from("leads").update({ assigned_rep_id: repId }).in("id", ids);
+  const { error } = await supabase.from("leads").update({ assigned_rep_id: repId }).in("id", ids);
+
+  if (!error) {
+    const briefIds = ids.slice(0, AUTO_BRIEF_CAP);
+    await supabase.from("leads").update({ ai_brief_status: "pending" }).in("id", briefIds);
+    after(async () => {
+      await Promise.allSettled(briefIds.map((id) => generateAiBrief(id)));
+    });
+  }
+
   revalidatePath("/team-pool");
 }
 
@@ -200,7 +225,9 @@ export default async function TeamPoolPage() {
             </button>
           </form>
           <div className="text-[11px] text-dim">
-            Pulls the highest scoring leads in the chosen tier first, best leads going out first.
+            Pulls the highest scoring leads in the chosen tier first, best leads going out first. The
+            first {AUTO_BRIEF_CAP} get an AI brief generated automatically; the rest can be generated
+            from the Call queue when a rep opens them.
           </div>
         </div>
       )}
