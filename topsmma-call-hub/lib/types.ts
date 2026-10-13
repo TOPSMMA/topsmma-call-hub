@@ -7,6 +7,8 @@ export type LeadStatus =
   | "Closed Won"
   | "Closed Lost";
 
+export type AiBriefStatus = "none" | "pending" | "ready" | "failed";
+
 export type Lead = {
   id: string;
   lead_number: string;
@@ -28,6 +30,10 @@ export type Lead = {
   signals: string | null;
   research_notes: string | null;
   ai_brief: string | null;
+  ai_brief_status: AiBriefStatus;
+  ai_pain_points: string | null;
+  ai_call_script: string | null;
+  ai_brief_generated_at: string | null;
   next_followup_at: string | null;
   last_activity_at: string | null;
   last_called_at: string | null;
