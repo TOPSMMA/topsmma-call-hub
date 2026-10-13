@@ -29,6 +29,8 @@ export default function CallQueueView({ initialLeads, userId, stats, reps = [] }
   const [selectedId, setSelectedId] = useState<string | null>(initialLeads[0]?.id ?? null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [logging, setLogging] = useState(false);
+  const [logError, setLogError] = useState<string | null>(null);
+  const [lastLogged, setLastLogged] = useState<string | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
 
@@ -51,21 +53,45 @@ export default function CallQueueView({ initialLeads, userId, stats, reps = [] }
   async function handleLogCall(outcome: "Connected" | "Voicemail" | "No Answer") {
     if (!selectedLead) return;
     setLogging(true);
+    setLogError(null);
+    setLastLogged(null);
     const nowIso = new Date().toISOString();
 
-    await supabase.from("call_logs").insert({
+    const { error: insertError } = await supabase.from("call_logs").insert({
       lead_id: selectedLead.id,
       rep_id: userId,
       outcome,
       led_to_meeting: false,
     });
 
-    await supabase.from("leads").update({ last_called_at: nowIso }).eq("id", selectedLead.id);
+    if (insertError) {
+      setLogError(insertError.message);
+      setLogging(false);
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from("leads")
+      .update({ last_called_at: nowIso })
+      .eq("id", selectedLead.id);
+
+    if (updateError) {
+      setLogError(updateError.message);
+      setLogging(false);
+      return;
+    }
 
     setLeads((cur) =>
       cur.map((l) => (l.id === selectedLead.id ? { ...l, last_called_at: nowIso } : l))
     );
+    setLastLogged(outcome);
     setLogging(false);
+
+    const currentIndex = leads.findIndex((l) => l.id === selectedLead.id);
+    const nextLead =
+      leads.find((l, i) => i > currentIndex && l.id !== selectedLead.id) ??
+      leads.find((l) => l.id !== selectedLead.id);
+    setSelectedId(nextLead?.id ?? null);
   }
 
   function handleLeadAdded(lead: Lead) {
@@ -245,6 +271,17 @@ export default function CallQueueView({ initialLeads, userId, stats, reps = [] }
                 Log: No answer
               </button>
             </div>
+
+            {logError && (
+              <div className="text-xs text-bad mt-2">
+                Could not log that call: {logError}
+              </div>
+            )}
+            {lastLogged && !logError && (
+              <div className="text-xs text-good mt-2">
+                Logged: {lastLogged} &middot; just now
+              </div>
+            )}
 
             <div className="grid grid-cols-4 gap-4 mt-5 pt-4.5 border-t border-line">
               <div>
