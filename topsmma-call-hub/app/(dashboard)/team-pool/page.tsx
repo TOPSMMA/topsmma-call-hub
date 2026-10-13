@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import ImportLeadsSection from "@/components/ImportLeadsSection";
 
 const TIERS: { key: "T1" | "T2" | "T3"; label: string }[] = [
   { key: "T1", label: "Whale" },
@@ -72,10 +73,14 @@ export default async function TeamPoolPage() {
 
   return (
     <div className="p-7 flex flex-col gap-5">
-      <div>
-        <h1 className="text-2xl font-extrabold m-0">Team &amp; pool</h1>
-        <div className="text-muted text-[13px] mt-1">Allocation, quotas and the unassigned pool</div>
+      <div className="flex flex-wrap gap-4 items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-extrabold m-0">Team &amp; pool</h1>
+          <div className="text-muted text-[13px] mt-1">Allocation, quotas and the unassigned pool</div>
+        </div>
       </div>
+
+      <ImportLeadsSection reps={(profiles ?? []).map((p) => ({ id: p.id, full_name: p.full_name }))} />
 
       <div className="bg-card border border-line rounded-xl px-5 py-4.5 flex flex-wrap items-center justify-between gap-4">
         <div>
