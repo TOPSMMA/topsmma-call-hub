@@ -11,6 +11,7 @@ export default async function CallQueuePage() {
     .from("leads")
     .select("*")
     .eq("assigned_rep_id", user!.id)
+    .order("last_called_at", { ascending: true, nullsFirst: true })
     .order("next_followup_at", { ascending: true, nullsFirst: false })
     .limit(100);
 
