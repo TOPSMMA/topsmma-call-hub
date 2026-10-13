@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { LEAD_STATUSES, type Lead, type LeadStatus } from "@/lib/types";
 import AddLeadForm from "@/components/AddLeadForm";
 import ImportLeadsSection from "@/components/ImportLeadsSection";
+import { requestAiBrief } from "@/app/(dashboard)/call-queue/actions";
 
 type Rep = { id: string; full_name: string };
 
@@ -99,6 +100,34 @@ export default function CallQueueView({ initialLeads, userId, stats, reps = [] }
     setSelectedId(lead.id);
     setShowAddForm(false);
   }
+
+  async function handleGenerateBrief() {
+    if (!selectedLead) return;
+    const leadId = selectedLead.id;
+    setLeads((cur) => cur.map((l) => (l.id === leadId ? { ...l, ai_brief_status: "pending" } : l)));
+    await requestAiBrief(leadId);
+  }
+
+  // While a brief is being generated, poll every few seconds for the
+  // result rather than making the rep manually refresh the page.
+  useEffect(() => {
+    if (!selectedLead || selectedLead.ai_brief_status !== "pending") return;
+    const leadId = selectedLead.id;
+
+    const interval = setInterval(async () => {
+      const { data } = await supabase
+        .from("leads")
+        .select("ai_brief_status, ai_brief, ai_pain_points, ai_call_script, ai_brief_generated_at")
+        .eq("id", leadId)
+        .single();
+
+      if (data && data.ai_brief_status !== "pending") {
+        setLeads((cur) => cur.map((l) => (l.id === leadId ? { ...l, ...data } : l)));
+      }
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [selectedLead?.id, selectedLead?.ai_brief_status, supabase]);
 
   return (
     <div className="p-7 flex flex-col gap-5">
@@ -322,6 +351,69 @@ export default function CallQueueView({ initialLeads, userId, stats, reps = [] }
                 </div>
               </div>
             )}
+
+            <div className="mt-4.5 pt-4.5 border-t border-line">
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="text-[10.5px] text-dim uppercase tracking-wide">AI brief</div>
+                {selectedLead.ai_brief_status === "ready" && selectedLead.ai_brief_generated_at && (
+                  <div className="text-[10.5px] text-dim" suppressHydrationWarning>
+                    updated {new Date(selectedLead.ai_brief_generated_at).toLocaleDateString()}
+                  </div>
+                )}
+              </div>
+
+              {selectedLead.ai_brief_status === "pending" && (
+                <div className="text-[13px] text-dim italic">Generating brief&hellip;</div>
+              )}
+
+              {selectedLead.ai_brief_status === "none" && (
+                <button onClick={handleGenerateBrief} className="text-[12px] text-accentlight font-bold">
+                  Generate AI brief
+                </button>
+              )}
+
+              {selectedLead.ai_brief_status === "failed" && (
+                <div className="flex items-center gap-2.5">
+                  <div className="text-[13px] text-bad">Couldn&apos;t generate a brief for this lead.</div>
+                  <button onClick={handleGenerateBrief} className="text-[12px] text-accentlight font-bold">
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              {selectedLead.ai_brief_status === "ready" && (
+                <div className="flex flex-col gap-3">
+                  {selectedLead.ai_brief && (
+                    <div className="text-[13px] text-[#C7CDD6] leading-relaxed">{selectedLead.ai_brief}</div>
+                  )}
+                  {selectedLead.ai_pain_points && (
+                    <div>
+                      <div className="text-[10.5px] text-dim uppercase tracking-wide mb-1">
+                        Likely pain points
+                      </div>
+                      <ul className="list-disc list-inside text-[13px] text-[#C7CDD6] leading-relaxed">
+                        {selectedLead.ai_pain_points
+                          .split("\n")
+                          .filter(Boolean)
+                          .map((point, i) => (
+                            <li key={i}>{point}</li>
+                          ))}
+                      </ul>
+                    </div>
+                  )}
+                  {selectedLead.ai_call_script && (
+                    <div>
+                      <div className="text-[10.5px] text-dim uppercase tracking-wide mb-1">
+                        Suggested opening
+                      </div>
+                      <div className="text-[13px] text-[#C7CDD6] leading-relaxed italic bg-cardhover border border-line rounded-lg p-3">
+                        {selectedLead.ai_call_script}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Up next */}
