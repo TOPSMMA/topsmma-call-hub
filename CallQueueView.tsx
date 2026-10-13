@@ -86,7 +86,12 @@ export default function CallQueueView({ initialLeads, userId, stats, reps = [] }
     );
     setLastLogged(outcome);
     setLogging(false);
-    setSelectedId(upNext[0]?.id ?? null);
+
+    const currentIndex = leads.findIndex((l) => l.id === selectedLead.id);
+    const nextLead =
+      leads.find((l, i) => i > currentIndex && l.id !== selectedLead.id) ??
+      leads.find((l) => l.id !== selectedLead.id);
+    setSelectedId(nextLead?.id ?? null);
   }
 
   function handleLeadAdded(lead: Lead) {
