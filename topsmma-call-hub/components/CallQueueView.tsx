@@ -4,11 +4,15 @@ import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { LEAD_STATUSES, type Lead, type LeadStatus } from "@/lib/types";
 import AddLeadForm from "@/components/AddLeadForm";
+import ImportLeadsSection from "@/components/ImportLeadsSection";
+
+type Rep = { id: string; full_name: string };
 
 type CallQueueViewProps = {
   initialLeads: Lead[];
   userId: string;
   stats: { callsToday: number; connectsToday: number; meetings7d: number };
+  reps?: Rep[];
 };
 
 function isDue(lead: Lead) {
@@ -20,7 +24,7 @@ function isUkOpenNow() {
   return hour >= 9 && hour < 18;
 }
 
-export default function CallQueueView({ initialLeads, userId, stats }: CallQueueViewProps) {
+export default function CallQueueView({ initialLeads, userId, stats, reps = [] }: CallQueueViewProps) {
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [selectedId, setSelectedId] = useState<string | null>(initialLeads[0]?.id ?? null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -92,6 +96,8 @@ export default function CallQueueView({ initialLeads, userId, stats }: CallQueue
           </button>
         </div>
       </div>
+
+      <ImportLeadsSection reps={reps} />
 
       {showAddForm && (
         <AddLeadForm userId={userId} onAdded={handleLeadAdded} onClose={() => setShowAddForm(false)} />
