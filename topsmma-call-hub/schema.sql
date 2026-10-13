@@ -207,3 +207,24 @@ create policy "read all call logs" on call_logs for select using (true);
 drop policy "admin reads revenue" on revenue_closed_won;
 create policy "read all revenue" on revenue_closed_won for select using (true);
 -- ==========================================================
+
+-- ==========================================================
+-- MIGRATION: AI prospect briefs (general info, pain points, script)
+-- Run this once in the Supabase SQL editor. ai_brief already existed
+-- and is reused for the general-info summary; these are the new
+-- columns the AI brief feature writes pain points and a suggested
+-- call-opening script into, plus a status flag so the UI knows
+-- whether a brief is still being generated.
+--
+-- No RLS policy changes are needed: reps already read these columns
+-- through "read assigned or pool leads", and the feature's writes go
+-- through the server using the service role key (see the app's
+-- SUPABASE_SERVICE_ROLE_KEY environment variable), not through a
+-- rep's own session.
+-- ==========================================================
+alter table leads add column if not exists ai_brief_status text not null default 'none'
+  check (ai_brief_status in ('none', 'pending', 'ready', 'failed'));
+alter table leads add column if not exists ai_pain_points text;
+alter table leads add column if not exists ai_call_script text;
+alter table leads add column if not exists ai_brief_generated_at timestamptz;
+-- ==========================================================
