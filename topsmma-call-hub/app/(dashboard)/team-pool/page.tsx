@@ -20,6 +20,44 @@ async function returnUncalled(formData: FormData) {
   revalidatePath("/team-pool");
 }
 
+async function assignLead(formData: FormData) {
+  "use server";
+  const leadId = String(formData.get("leadId") || "");
+  const repId = String(formData.get("repId") || "");
+  if (!leadId || !repId) return;
+  const supabase = await createClient();
+  await supabase
+    .from("leads")
+    .update({ assigned_rep_id: repId })
+    .eq("id", leadId)
+    .is("assigned_rep_id", null);
+  revalidatePath("/team-pool");
+}
+
+async function assignBulk(formData: FormData) {
+  "use server";
+  const repId = String(formData.get("repId") || "");
+  const tier = String(formData.get("tier") || "any");
+  const count = Math.max(1, Math.min(200, Number(formData.get("count")) || 0));
+  if (!repId || !count) return;
+
+  const supabase = await createClient();
+  const base = supabase
+    .from("leads")
+    .select("id")
+    .is("assigned_rep_id", null)
+    .order("tier", { ascending: true })
+    .order("score", { ascending: false })
+    .limit(count);
+
+  const { data: targets } = tier === "any" ? await base : await base.eq("tier", tier);
+  const ids = (targets ?? []).map((l) => l.id);
+  if (ids.length === 0) return;
+
+  await supabase.from("leads").update({ assigned_rep_id: repId }).in("id", ids);
+  revalidatePath("/team-pool");
+}
+
 export default async function TeamPoolPage() {
   const supabase = await createClient();
 
@@ -32,6 +70,14 @@ export default async function TeamPoolPage() {
     .from("leads")
     .select("tier")
     .is("assigned_rep_id", null);
+
+  const { data: poolLeads } = await supabase
+    .from("leads")
+    .select("id, lead_number, company_name, tier, score")
+    .is("assigned_rep_id", null)
+    .order("tier", { ascending: true })
+    .order("score", { ascending: false })
+    .limit(100);
 
   const poolTotal = pool?.length ?? 0;
   const poolByTier = Object.fromEntries(
@@ -70,6 +116,8 @@ export default async function TeamPoolPage() {
     })
   );
 
+  const leadsToShow = poolLeads ?? [];
+
   return (
     <div className="p-7 flex flex-col gap-5">
       <div className="flex flex-wrap gap-4 items-start justify-between">
@@ -93,6 +141,135 @@ export default async function TeamPoolPage() {
               <div className="text-lg font-bold mt-0.5">{poolByTier[t.key]}</div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {reps.length > 0 && poolTotal > 0 && (
+        <div className="bg-card border border-line rounded-xl p-4.5 flex flex-col gap-3">
+          <div className="font-bold text-sm">Bulk assign from pool</div>
+          <form action={assignBulk} className="flex flex-wrap items-end gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] text-muted">Assign to</label>
+              <select
+                name="repId"
+                required
+                defaultValue=""
+                className="bg-cardhover border border-line rounded-lg px-2.5 py-1.5 text-[12.5px]"
+              >
+                <option value="" disabled>
+                  Choose rep&hellip;
+                </option>
+                {reps.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.full_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] text-muted">Tier</label>
+              <select
+                name="tier"
+                defaultValue="any"
+                className="bg-cardhover border border-line rounded-lg px-2.5 py-1.5 text-[12.5px]"
+              >
+                <option value="any">Any tier</option>
+                {TIERS.map((t) => (
+                  <option key={t.key} value={t.key}>
+                    {t.key} &middot; {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] text-muted">How many</label>
+              <input
+                type="number"
+                name="count"
+                min={1}
+                max={200}
+                defaultValue={10}
+                className="w-20 bg-cardhover border border-line rounded-lg px-2.5 py-1.5 text-[12.5px]"
+              />
+            </div>
+            <button
+              type="submit"
+              className="bg-accent hover:bg-accentlight transition-colors text-white font-bold text-[12.5px] rounded-lg px-4 py-2"
+            >
+              Assign
+            </button>
+          </form>
+          <div className="text-[11px] text-dim">
+            Pulls the highest scoring leads in the chosen tier first, best leads going out first.
+          </div>
+        </div>
+      )}
+
+      <div className="bg-card border border-line rounded-xl overflow-hidden">
+        <div className="px-4.5 py-3 border-b border-line font-bold text-sm">
+          Unassigned leads
+          {poolTotal > leadsToShow.length && (
+            <span className="text-dim font-normal"> &middot; showing {leadsToShow.length} of {poolTotal}</span>
+          )}
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-[12.5px]">
+            <thead>
+              <tr className="text-left text-dim border-b border-line">
+                <th className="px-4 py-2.5 font-semibold whitespace-nowrap">Lead</th>
+                <th className="px-4 py-2.5 font-semibold">Company</th>
+                <th className="px-4 py-2.5 font-semibold whitespace-nowrap">Tier</th>
+                <th className="px-4 py-2.5 font-semibold whitespace-nowrap">Score</th>
+                <th className="px-4 py-2.5 font-semibold whitespace-nowrap">Assign to</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leadsToShow.map((lead) => (
+                <tr key={lead.id} className="border-b border-line last:border-0">
+                  <td className="px-4 py-2.5 text-dim whitespace-nowrap">{lead.lead_number}</td>
+                  <td className="px-4 py-2.5 font-semibold">{lead.company_name}</td>
+                  <td className="px-4 py-2.5 whitespace-nowrap">
+                    {lead.tier && (
+                      <span className="bg-accent/10 text-accentlight text-[11px] font-bold px-2 py-0.5 rounded-full">
+                        {lead.tier}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5">{lead.score ?? "—"}</td>
+                  <td className="px-4 py-2.5">
+                    <form action={assignLead} className="flex items-center gap-2 whitespace-nowrap">
+                      <input type="hidden" name="leadId" value={lead.id} />
+                      <select
+                        name="repId"
+                        required
+                        defaultValue=""
+                        className="bg-cardhover border border-line rounded-lg px-2 py-1 text-[12px]"
+                      >
+                        <option value="" disabled>
+                          Choose&hellip;
+                        </option>
+                        {reps.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.full_name}
+                          </option>
+                        ))}
+                      </select>
+                      <button type="submit" className="text-accentlight font-bold text-[12px]">
+                        Assign
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+              {leadsToShow.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-4 text-dim text-center">
+                    Pool is empty.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
