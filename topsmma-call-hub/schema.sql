@@ -192,3 +192,18 @@ create policy "rep logs own closed deals" on revenue_closed_won for insert
 --    you need to run one update statement after your first login:
 --    update profiles set role = 'admin' where email = 'you@yourdomain.com';
 -- ==========================================================
+
+-- ==========================================================
+-- MIGRATION: team-wide Reports page (day/week/month tracking)
+-- Run this once in the Supabase SQL editor to apply it to your
+-- existing project. Before this runs, only an admin can see
+-- everyone's call activity and revenue; after it runs, every
+-- logged-in rep can see the whole team's numbers on /reports
+-- (call logs) and revenue/closed deals, not just their own.
+-- ==========================================================
+drop policy "read own call logs" on call_logs;
+create policy "read all call logs" on call_logs for select using (true);
+
+drop policy "admin reads revenue" on revenue_closed_won;
+create policy "read all revenue" on revenue_closed_won for select using (true);
+-- ==========================================================
