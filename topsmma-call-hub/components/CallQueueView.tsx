@@ -169,7 +169,7 @@ export default function CallQueueView({ initialLeads, userId, stats, reps = [] }
                   </span>
                 )}
               </div>
-              <div className="text-xs text-dim">
+              <div className="text-xs text-dim" suppressHydrationWarning>
                 {selectedLead.last_called_at
                   ? `Last called ${new Date(selectedLead.last_called_at).toLocaleString()}`
                   : "Never called"}
