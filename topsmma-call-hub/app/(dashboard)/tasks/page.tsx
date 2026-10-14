@@ -21,4 +21,3 @@ export default async function TasksPage() {
   
     return <TasksView initialTasks={tasks ?? []} leads={leads ?? []} userId={user!.id} />;
 }
-x
