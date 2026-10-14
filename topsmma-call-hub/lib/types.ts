@@ -53,3 +53,22 @@ export const LEAD_STATUSES: LeadStatus[] = [
   "Closed Won",
   "Closed Lost",
 ];
+
+
+export type Task = {
+    id: string;
+    rep_id: string;
+    lead_id: string | null;
+    title: string;
+    notes: string | null;
+    due_at: string | null;
+    completed: boolean;
+    completed_at: string | null;
+    created_at: string;
+    leads: { company_name: string } | null;
+};
+
+export type TaskLead = {
+    id: string;
+    company_name: string;
+};
