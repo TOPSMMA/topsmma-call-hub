@@ -193,6 +193,7 @@ return (
                                                                     <span className="bg-accent/10 text-accentlight text-[10.5px] font-bold px-1.5 py-0.5 rounded-full">
                                                                       {task.leads.company_name}
                                                                     </span>
+                                                  )}
                                                             
                                                   {task.due_at && !task.completed && (
                                                                     <span
