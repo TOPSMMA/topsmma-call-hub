@@ -228,3 +228,36 @@ alter table leads add column if not exists ai_pain_points text;
 alter table leads add column if not exists ai_call_script text;
 alter table leads add column if not exists ai_brief_generated_at timestamptz;
 -- ==========================================================
+
+
+-- ==========================================================
+-- MIGRATION: Tasks (to-dos and follow-ups)
+-- Run this once in the Supabase SQL editor before using the Tasks
+-- page. A task is deliberately separate from a lead's next_followup_at
+-- field: next_followup_at is a single "when to call this lead again"
+-- date baked into the lead itself, while a task has its own title, an
+-- optional due date, and can optionally be tied to a lead or stand on
+-- its own (a reminder, an admin chore, anything not call-specific).
+-- ==========================================================
+create table tasks (
+    id uuid primary key default gen_random_uuid(),
+    rep_id uuid not null references profiles (id),
+    lead_id uuid references leads (id) on delete set null,
+    title text not null,
+    notes text,
+    due_at timestamptz,
+    completed boolean not null default false,
+    completed_at timestamptz,
+    created_at timestamptz not null default now()
+  );
+
+create index tasks_rep_due_idx on tasks (rep_id, due_at);
+
+alter table tasks enable row level security;
+
+-- A rep manages only their own tasks, admin sees and manages all of them.
+create policy "read own tasks" on tasks for select using (rep_id = auth.uid() or is_admin());
+create policy "insert own tasks" on tasks for insert with check (rep_id = auth.uid() or is_admin());
+create policy "update own tasks" on tasks for update using (rep_id = auth.uid() or is_admin());
+create policy "delete own tasks" on tasks for delete using (rep_id = auth.uid() or is_admin());
+-- ==========================================================
