@@ -261,3 +261,32 @@ create policy "insert own tasks" on tasks for insert with check (rep_id = auth.u
 create policy "update own tasks" on tasks for update using (rep_id = auth.uid() or is_admin());
 create policy "delete own tasks" on tasks for delete using (rep_id = auth.uid() or is_admin());
 -- ==========================================================
+
+-- ==========================================================
+-- MIGRATION: Scripts (shared call script library)
+-- Run this once in the Supabase SQL editor before using the Scripts
+-- page. These are reusable, team-wide talk tracks (opening lines,
+-- objection handling, voicemail drops, closing lines), kept separate
+-- from a lead's own ai_call_script, which is a one-off AI generated
+-- opener tailored to that single lead.
+-- ==========================================================
+create table scripts (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  category text not null default 'Other'
+  check (category in ('Opening', 'Objection', 'Voicemail', 'Closing', 'Other')),
+  body text not null,
+  sort_order int not null default 0,
+  created_by uuid references profiles (id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+  );
+
+create index scripts_category_idx on scripts (category, sort_order);
+
+alter table scripts enable row level security;
+
+-- Every rep can read the shared script library, only admin edits it.
+create policy "read all scripts" on scripts for select using (true);
+create policy "admin manages scripts" on scripts for all using (is_admin()) with check (is_admin());
+-- ==========================================================
