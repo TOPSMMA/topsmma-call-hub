@@ -259,7 +259,7 @@ return (
                 className="bg-cardhover border border-line rounded-lg px-3 py-2 text-[13px] outline-none focus:border-accent resize-y"
               />
             </div>
-            {error && <div className="text-[12px] text-bad">{error}</div>
+            {error && <div className="text-[12px] text-bad">{error}</div>}
             <div className="flex justify-end gap-2 mt-1">
               <button
                 type="button"
