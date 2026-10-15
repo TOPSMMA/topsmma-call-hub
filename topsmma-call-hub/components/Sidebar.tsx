@@ -16,9 +16,10 @@ const navLinks: { label: string; href: string }[] = [
   { label: "Reports", href: "/reports" },
   { label: "Pipeline", href: "/pipeline" },
   { label: "Tasks", href: "/tasks" },
+  { label: "Scripts", href: "/scripts" },
 ];
 
-const comingSoon = ["Inbox", "Emails", "Scripts", "Playbook"];
+const comingSoon = ["Inbox", "Emails",  "Playbook"];
 
 export default function Sidebar({ fullName, dueCount, totalLeads }: SidebarProps) {
   const pathname = usePathname();
