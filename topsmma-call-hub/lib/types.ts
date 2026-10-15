@@ -72,3 +72,24 @@ export type TaskLead = {
     id: string;
     company_name: string;
 };
+
+export type ScriptCategory = "Opening" | "Objection" | "Voicemail" | "Closing" | "Other";
+
+export const SCRIPT_CATEGORIES: ScriptCategory[] = [
+  "Opening",
+  "Objection",
+  "Voicemail",
+  "Closing",
+  "Other",
+  ];
+
+export type Script = {
+  id: string;
+  title: string;
+  category: ScriptCategory;
+  body: string;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
