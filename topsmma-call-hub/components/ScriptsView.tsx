@@ -193,7 +193,7 @@ return (
                     className="text-[12px] font-semibold px-3 py-1.5 rounded-lg border border-line bg-cardhover hover:bg-cardhover/60"
                   >
                     {copied ? "Copied" : "Copy"}
-                  </button>button>
+                  </button>
                   {isAdmin && (
                     <>
                       <button
@@ -201,7 +201,7 @@ return (
                         className="text-[12px] font-semibold px-3 py-1.5 rounded-lg border border-line bg-cardhover hover:bg-cardhover/60"
                       >
                         Edit
-                      </button>button>
+                      </button>
                       <button
                         onClick={() => deleteScript(selected.id)}
                         className="text-[12px] font-semibold px-3 py-1.5 rounded-lg border border-line text-bad hover:bg-bad/10"
